@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>설치일 예약</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0D3A6E;--blue:#1A5FA8;--blue-light:#D6E6F7;
+  --green:#1A6835;--green-bg:#DCF0E3;
+  --red:#B01A1A;--red-bg:#FDDEDE;
+  --amber:#7A4800;--amber-bg:#FEF0D4;
+  --border:#C8D9EE;--surface:#EEF4FB;
+  --text:#0F2342;--text2:#3A5170;--text3:#7A96B5;
+  --radius:10px;--radius-lg:16px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--surface);min-height:100vh;padding:20px 16px;color:var(--text)}
+.wrap{max-width:560px;margin:0 auto}
+
+/* 헤더 */
+.header{text-align:center;margin-bottom:24px}
+.header-logo{font-size:24px;font-weight:800;color:var(--navy);margin-bottom:4px}
+.header-sub{font-size:13px;color:var(--text3)}
+
+/* 카드 */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
+.card-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.4px}
+
+/* 단계 표시 */
+.steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:24px}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.step-circle{width:28px;height:28px;border-radius:50%;background:#E0E8F5;color:var(--text3);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.step-label{font-size:10px;color:var(--text3);font-weight:500}
+.step.active .step-circle{background:var(--blue);color:#fff}
+.step.active .step-label{color:var(--blue);font-weight:700}
+.step.done .step-circle{background:var(--green-bg);color:var(--green)}
+.step-line{flex:1;height:2px;background:#E0E8F5;margin-bottom:14px}
+.step-line.done{background:var(--green)}
+
+/* 입력 */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+label{font-size:12px;font-weight:700;color:var(--text2)}
+.req{color:var(--red);margin-left:2px}
+input,select{padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;font-family:inherit;color:var(--text);outline:none;background:#fff;width:100%}
+input:focus,select:focus{border-color:var(--blue)}
+
+/* 오더 카드 */
+.order-card{border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;transition:all .18s;background:#fff}
+.order-card.selected{border-color:var(--blue);background:#F0F7FF}
+.order-card-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.order-check{width:20px;height:20px;cursor:pointer;flex-shrink:0;accent-color:var(--blue)}
+.order-name{font-size:15px;font-weight:700;flex:1}
+.order-status{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700;background:var(--blue-light);color:var(--blue)}
+.order-info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding-left:30px}
+.order-info-item{font-size:12px;color:var(--text2)}
+.order-info-label{font-size:10px;color:var(--text3);margin-bottom:1px}
+.date-row{display:flex;align-items:center;gap:8px;padding-left:30px}
+.date-row label{font-size:12px;color:var(--text2);white-space:nowrap;font-weight:600}
+.date-row input[type=date]{font-size:13px;padding:7px 10px;flex:1}
+.date-ok{font-size:11px;color:var(--green);margin-left:4px;display:none}
+.date-err{font-size:11px;color:var(--red);margin-left:4px;display:none}
+
+/* 전체선택 */
+.select-all-row{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-radius:var(--radius);margin-bottom:10px;cursor:pointer}
+.select-all-row label{font-size:13px;font-weight:700;color:var(--text2);cursor:pointer}
+.select-all-check{width:18px;height:18px;accent-color:var(--blue);cursor:pointer}
+
+/* 버튼 */
+.btn-primary{width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-lg);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary:hover{background:var(--navy)}
+.btn-primary:disabled{background:#AAC0D8;cursor:not-allowed}
+.btn-secondary{width:100%;padding:11px;background:#fff;color:var(--text2);border:1.5px solid var(--border);border-radius:var(--radius-lg);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px}
+
+/* 안내박스 */
+.notice{background:var(--amber-bg);border:1px solid #E8C87A;border-radius:var(--radius);padding:11px 13px;font-size:12px;color:var(--amber);margin-bottom:12px;line-height:1.6}
+
+/* 완료 */
+.success{text-align:center;padding:32px 20px}
+.success-icon{font-size:52px;margin-bottom:14px}
+.success-title{font-size:20px;font-weight:800;color:var(--green);margin-bottom:8px}
+.success-sub{font-size:13px;color:var(--text2);line-height:1.7}
+.success-items{background:var(--surface);border-radius:var(--radius-lg);padding:14px 16px;margin:16px 0;text-align:left}
+.success-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.success-item:last-child{border-bottom:none}
+
+/* 로딩 */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loading-overlay.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 에러 */
+.err-text{font-size:12px;color:var(--red);margin-top:5px;display:none}
+.has-error input{border-color:var(--red)}
+.has-error .err-text{display:block}
+
+@media(max-width:400px){.order-info{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--text2)">처리 중입니다...</div>
+</div>
+
+<div class="wrap">
+  <div class="header">
+    <div class="header-logo">🔧 설치일 예약</div>
+    <div class="header-sub">YS Company · 설치 서비스</div>
+  </div>
+
+  <!-- 단계 표시 -->
+  <div class="steps" id="steps-wrap">
+    <div class="step active" id="step1">
+      <div class="step-circle">1</div>
+      <div class="step-label">번호 조회</div>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2">
+      <div class="step-circle">2</div>
+      <div class="step-label">날짜 선택</div>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3">
+      <div class="step-circle">3</div>
+      <div class="step-label">예약 완료</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: 전화번호 입력 -->
+  <div id="page-step1">
+    <div class="card">
+      <div class="card-title">📱 구매 전화번호 입력</div>
+      <div class="notice">
+        구매 시 등록하신 전화번호를 입력하시면<br>
+        해당 오더 건의 설치일을 예약하실 수 있습니다.
+      </div>
+      <div class="field" id="f-phone">
+        <label>전화번호<span class="req">*</span></label>
+        <input id="inp-phone" type="tel" placeholder="010-0000-0000"
+          oninput="fmtPhone(this)"
+          onkeydown="if(event.key==='Enter')lookupOrders()"/>
+        <div class="err-text">전화번호를 입력해 주세요</div>
+      </div>
+      <button class="btn-primary" onclick="lookupOrders()">
+        <span>조회하기</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: 오더 목록 + 날짜 선택 -->
+  <div id="page-step2" style="display:none">
+    <div class="notice" id="found-notice"></div>
+
+    <!-- 전체 선택 -->
+    <div class="select-all-row" onclick="toggleSelectAll()">
+      <input type="checkbox" class="select-all-check" id="chk-all"/>
+      <label for="chk-all">전체 선택 (모든 건 동일 날짜 적용)</label>
+    </div>
+
+    <!-- 오더 목록 -->
+    <div id="order-list"></div>
+
+    <button class="btn-primary" id="confirm-btn" onclick="confirmDates()">
+      <span id="confirm-label">선택한 건 예약하기</span>
+    </button>
+    <button class="btn-secondary" onclick="goBack()">← 다시 조회하기</button>
+  </div>
+
+  <!-- STEP 3: 완료 -->
+  <div id="page-step3" style="display:none">
+    <div class="card">
+      <div class="success">
+        <div class="success-icon">✅</div>
+        <div class="success-title">예약이 완료되었습니다!</div>
+        <div class="success-sub">담당자가 확인 후 설치 전날<br>일정 안내 연락을 드립니다.</div>
+        <div class="success-items" id="success-items"></div>
+        <button class="btn-secondary" onclick="goStart()">처음으로</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const {createClient} = supabase;
+const sb = createClient(
+  'https://lofcqfkywpewnbbgxkbt.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvZmNxZmt5d3Bld25iYmd4a2J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMzQ1ODIsImV4cCI6MjA5NjgxMDU4Mn0.vfYvCr2nZb6boudyVBzY--XOqnAW9F0IKKF8QlLTqk4'
+);
+
+let blockedDates = [];
+let foundOrders = [];
+
+// ── 초기화 ──
+(async function init(){
+  try{
+    const {data} = await sb.from('blocked_dates').select('date').eq('active',true);
+    blockedDates = (data||[]).map(d=>d.date);
+  }catch(e){}
+  // 최소 날짜: 내일
+  const tom = new Date(); tom.setDate(tom.getDate()+1);
+  document.querySelectorAll('input[type=date]').forEach(el=>el.min=tom.toISOString().slice(0,10));
+})();
+
+// ── 전화번호 포맷 ──
+function fmtPhone(inp){
+  let v=inp.value.replace(/[^0-9]/g,'');
+  if(v.length<=3)inp.value=v;
+  else if(v.length<=7)inp.value=v.slice(0,3)+'-'+v.slice(3);
+  else inp.value=v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7,11);
+}
+
+// ── 단계 업데이트 ──
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const s=document.getElementById('step'+i);
+    s.classList.remove('active','done');
+    if(i<n) s.classList.add('done');
+    if(i===n) s.classList.add('active');
+  });
+  [1,2].forEach(i=>{
+    const l=document.getElementById('line'+i);
+    l.classList.toggle('done', i<n);
+  });
+  ['page-step1','page-step2','page-step3'].forEach((id,i)=>{
+    document.getElementById(id).style.display = i+1===n ? 'block':'none';
+  });
+}
+
+// ── STEP1: 오더 조회 ──
+async function lookupOrders(){
+  const phone = document.getElementById('inp-phone').value.trim();
+  const fEl = document.getElementById('f-phone');
+  if(!phone){ fEl.classList.add('has-error'); return; }
+  fEl.classList.remove('has-error');
+
+  document.getElementById('loading').classList.add('show');
+  try{
+    const digits = phone.replace(/[^0-9]/g,'');
+    const {data, error} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    // 전화번호 매칭
+    foundOrders = (data||[]).filter(o=>String(o.phone||'').replace(/[^0-9]/g,'')===digits);
+    document.getElementById('loading').classList.remove('show');
+
+    if(!foundOrders.length){
+      alert('해당 전화번호로 등록된 오더가 없습니다.\n고객센터로 문의해 주세요.');
+      return;
+    }
+    renderOrders();
+    setStep(2);
+
+    const notice = document.getElementById('found-notice');
+    notice.textContent = `📋 ${foundOrders.length}건의 오더가 조회되었습니다. 설치일을 선택해 주세요.`;
+  }catch(e){
+    document.getElementById('loading').classList.remove('show');
+    alert('조회 중 오류가 발생했습니다: '+e.message);
+  }
+}
+
+// ── 오더 목록 렌더 ──
+function renderOrders(){
+  const tom = new Date(); tom.setDate(tom.getDate()+1);
+  const minDate = tom.toISOString().slice(0,10);
+
+  const html = foundOrders.map((o,i)=>{
+    const hasDate = o.install_date && o.install_date >= minDate;
+    return `
+    <div class="order-card" id="ocard-${i}" onclick="toggleOrder(${i})">
+      <div class="order-card-header">
+        <input type="checkbox" class="order-check" id="chk-${i}"
+          onclick="event.stopPropagation();toggleOrder(${i})" checked/>
+        <div class="order-name">${esc(o.name||'—')}</div>
+        <div class="order-status">${esc(o.status||'접수')}</div>
+      </div>
+      <div class="order-info">
+        <div class="order-info-item">
+          <div class="order-info-label">제품</div>
+          <div>${esc(o.product||o.model||'—')}</div>
+        </div>
+        <div class="order-info-item">
+          <div class="order-info-label">수량</div>
+          <div>${o.qty||1}대</div>
+        </div>
+        <div class="order-info-item" style="grid-column:span 2">
+          <div class="order-info-label">설치 주소</div>
+          <div>${esc(o.addr||'—')}</div>
+        </div>
+        ${o.install_date?`<div class="order-info-item" style="grid-column:span 2">
+          <div class="order-info-label">기존 설치일</div>
+          <div style="color:var(--amber)">${o.install_date}</div>
+        </div>`:''}
+      </div>
+      <div class="date-row">
+        <label>설치 희망일</label>
+        <input type="date" id="date-${i}" min="${minDate}"
+          value="${hasDate?o.install_date:''}"
+          onclick="event.stopPropagation()"
+          onchange="onDateChange(${i},this)"/>
+        <span class="date-ok" id="dok-${i}">✅</span>
+        <span class="date-err" id="derr-${i}">⛔ 마감</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('order-list').innerHTML = html;
+  updateConfirmBtn();
+}
+
+// ── 개별 오더 체크 토글 ──
+function toggleOrder(i){
+  const chk = document.getElementById('chk-'+i);
+  const card = document.getElementById('ocard-'+i);
+  chk.checked = !chk.checked;
+  card.classList.toggle('selected', chk.checked);
+  updateConfirmBtn();
+}
+
+// ── 전체 선택 ──
+function toggleSelectAll(){
+  const allChk = document.getElementById('chk-all');
+  allChk.checked = !allChk.checked;
+  foundOrders.forEach((_,i)=>{
+    const chk=document.getElementById('chk-'+i);
+    const card=document.getElementById('ocard-'+i);
+    if(chk){ chk.checked=allChk.checked; card.classList.toggle('selected',allChk.checked); }
+  });
+  updateConfirmBtn();
+}
+
+// ── 날짜 변경 체크 ──
+function onDateChange(i, inp){
+  const dok=document.getElementById('dok-'+i);
+  const derr=document.getElementById('derr-'+i);
+  if(!inp.value){ dok.style.display='none'; derr.style.display='none'; return; }
+  if(blockedDates.includes(inp.value)){
+    dok.style.display='none'; derr.style.display='inline';
+    inp.value='';
+    alert('선택하신 날짜는 마감되었습니다. 다른 날짜를 선택해 주세요.');
+  } else {
+    dok.style.display='inline'; derr.style.display='none';
+  }
+  // 전체선택 상태면 다른 오더에도 날짜 동기화
+  if(document.getElementById('chk-all').checked && inp.value){
+    foundOrders.forEach((_,j)=>{
+      if(j===i) return;
+      const other=document.getElementById('date-'+j);
+      if(other && document.getElementById('chk-'+j)?.checked){
+        other.value=inp.value;
+        document.getElementById('dok-'+j).style.display='inline';
+        document.getElementById('derr-'+j).style.display='none';
+      }
+    });
+  }
+  updateConfirmBtn();
+}
+
+// ── 확인 버튼 상태 업데이트 ──
+function updateConfirmBtn(){
+  const selected = foundOrders.filter((_,i)=>document.getElementById('chk-'+i)?.checked);
+  const label = document.getElementById('confirm-label');
+  if(label) label.textContent = `선택한 ${selected.length}건 예약하기`;
+  document.getElementById('confirm-btn').disabled = selected.length===0;
+}
+
+// ── STEP2: 날짜 확정 ──
+async function confirmDates(){
+  const selected = foundOrders.map((o,i)=>({
+    order:o, idx:i,
+    checked: document.getElementById('chk-'+i)?.checked,
+    date: document.getElementById('date-'+i)?.value
+  })).filter(x=>x.checked);
+
+  if(!selected.length){ alert('오더를 선택해 주세요.'); return; }
+
+  // 날짜 미입력 체크
+  const noDate = selected.filter(x=>!x.date);
+  if(noDate.length){
+    alert(`${noDate.length}건의 설치 희망일을 입력해 주세요.`);
+    return;
+  }
+
+  // 마감 날짜 체크
+  const blocked = selected.filter(x=>blockedDates.includes(x.date));
+  if(blocked.length){
+    alert('마감된 날짜가 포함되어 있습니다. 다시 확인해 주세요.');
+    return;
+  }
+
+  document.getElementById('loading').classList.add('show');
+  try{
+    // 각 오더 업데이트
+    for(const s of selected){
+      await sb.from('orders').update({
+        install_date: s.date,
+        status: s.order.status==='신규접수'?'신규접수':s.order.status
+      }).eq('id', s.order.id);
+    }
+    document.getElementById('loading').classList.remove('show');
+
+    // 완료 화면
+    const itemsHtml = selected.map(s=>`
+      <div class="success-item">
+        <span>${esc(s.order.name||'—')} · ${esc(s.order.product||s.order.model||'')}</span>
+        <span style="font-weight:700;color:var(--blue)">${s.date}</span>
+      </div>`).join('');
+    document.getElementById('success-items').innerHTML = itemsHtml;
+    setStep(3);
+  }catch(e){
+    document.getElementById('loading').classList.remove('show');
+    alert('저장 중 오류가 발생했습니다: '+e.message);
+  }
+}
+
+// ── 유틸 ──
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function goBack(){ setStep(1); }
+function goStart(){
+  document.getElementById('inp-phone').value='';
+  foundOrders=[];
+  setStep(1);
+}
+</script>
+</body>
+</html>
